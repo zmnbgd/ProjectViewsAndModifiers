@@ -235,6 +235,176 @@ That won’t work the same way: blur() is a regular modifier, so any blurs appli
 To the best of my knowledge there is no way of knowing ahead of time which modifiers are environment modifiers and which are regular modifiers other than reading the individual documentation for each modifier and hope it’s mentioned. Still, I’d rather have them than not: being able to apply one modifier everywhere is much better than copying and pasting the same thing into multiple places.
 
 
-    
+Views as properties
+
+There are lots of ways to make it easier to use complex view hierarchies in SwiftUI, and one option is to use properties – to create a view as a property of your own view, then use that property inside your layouts.
+For example, we could create two text views like this as properties, then use them inside a VStack:
+
+struct ContentView: View {
+    let motto1 = Text("Draco dormiens")
+    let motto2 = Text("nunquam titillandus")
+
+    var body: some View {
+        VStack {
+            motto1
+            motto2
+        }
+    }
+}
+
+You can even apply modifiers directly to those properties as they are being used, like this:
+
+VStack {
+    motto1
+        .foregroundColor(.red)
+    motto2
+        .foregroundColor(.blue)
+}
+
+Creating views as properties can be helpful to keep your body code clearer – not only does it help avoid repetition, but it can also get more complex code out of the body property.
+Swift doesn’t let us create one stored property that refers to other stored properties, because it would cause problems when the object is created. This means trying to create a TextField bound to a local property will cause problems.
+However, you can create computed properties if you want, like this:
+
+var motto1: some View {
+    Text("Draco dormiens")
+}
+
+This is often a great way to carve up your complex views into smaller chunks, but be careful: unlike the body property, Swift won’t automatically apply the @ViewBuilder attribute here, so if you want to send multiple views back you have three options.
+
+First, you can place them in a stack, like this:
+
+var spells: some View {
+    VStack {
+        Text("Lumos")
+        Text("Obliviate")
+    }
+}
+
+If you don’t specifically want to organize them in a stack, you can also send back a Group. When this happens, the arrangement of your views is determined by how you use them elsewhere in your code:
+
+var spells: some View {
+    Group {
+        Text("Lumos")
+        Text("Obliviate")
+    }
+}
+
+The third option is to add the @ViewBuilder attribute yourself, like this:
+
+@ViewBuilder var spells: some View {
+    Text("Lumos")
+    Text("Obliviate")
+}
+
+Of them all, I prefer to use @ViewBuilder because it mimics the way body works, however I’m also wary when I see folks cram lots of functionality into their properties – it’s usually a sign that their views are getting a bit too complex, and need to be broken up. Speaking of which, let’s tackle that next…
+
+View composition
+
+
+SwiftUI lets us break complex views down into smaller views without incurring much if any performance impact. This means that we can split up one large view into multiple smaller views, and SwiftUI takes care of reassembling them for us.
+
+For example, in this view we have a particular way of styling text views – they have a large font, some padding, foreground and background colors, plus a capsule shape:
+
+struct ContentView: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Text("First")
+                .font(.largeTitle)
+                .padding()
+                .foregroundColor(.white)
+                .background(.blue)
+                .clipShape(Capsule())
+
+            Text("Second")
+                .font(.largeTitle)
+                .padding()
+                .foregroundColor(.white)
+                .background(.blue)
+                .clipShape(Capsule())
+        }
+    }
+}
+
+Because those two text views are identical apart from their text, we can wrap them up in a new custom view, like this:
+
+struct CapsuleText: View {
+    var text: String
+
+    var body: some View {
+        Text(text)
+            .font(.largeTitle)
+            .padding()
+            .foregroundColor(.white)
+            .background(.blue)
+            .clipShape(Capsule())
+    }
+}
+
+We can then use that CapsuleText view inside our original view, like this:
+
+struct ContentView: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            CapsuleText(text: "First")
+            CapsuleText(text: "Second")
+        }
+    }
+}
+
+Of course, we can also store some modifiers in the view and customize others when we use them. For example, if we removed foregroundColor from CapsuleText, we could then apply custom colors when creating instances of that view like this:
+
+VStack(spacing: 10) {
+    CapsuleText(text: "First")
+        .foregroundColor(.white)
+    CapsuleText(text: "Second")
+        .foregroundColor(.yellow)
+}
+
+Don’t worry about performance issues here – it’s extremely efficient to break up SwiftUI views in this way.
+
+
+Custom modifiers
+
+SwiftUI gives us a range of built-in modifiers, such as font(), background(), and clipShape(). However, it’s also possible to create custom modifiers that do something specific.
+
+To create a custom modifier, create a new struct that conforms to the ViewModifier protocol. This has only one requirement, which is a method called body that accepts whatever content it’s being given to work with, and must return some View.
+
+For example, we might say that all titles in our app should have a particular style, so first we need to create a custom ViewModifier struct that does what we want:
+
+
+struct Title: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .font(.largeTitle)
+            .foregroundColor(.white)
+            .padding()
+            .background(.blue)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+We can now use that with the modifier() modifier – yes, it’s a modifier called “modifier”, but it lets us apply any sort of modifier to a view, like this:
+
+Text("Hello World")
+    .modifier(Title())
+
+
+When working with custom modifiers, it’s usually a smart idea to create extensions on View that make them easier to use. For example, we might wrap the Title modifier in an extension such as this:
+
+extension View {
+    func titleStyle() -> some View {
+        modifier(Title())
+    }
+}
+
+We can now use the modifier like this:
+
+Text("Hello World")
+    .titleStyle()
+
+Custom modifiers can do much more than just apply other existing modifiers – they can also create new view structure, as needed. Remember, modifiers return new objects rather than modifying existing ones, so we could create one that embeds the view in a stack and adds another view:
+
+Tip: Often folks wonder when it’s better to add a custom view modifier versus just adding a new method to View, and really it comes down to one main reason: custom view modifiers can have their own stored properties, whereas extensions to View cannot.
+
     
   
