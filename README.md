@@ -406,5 +406,9 @@ Custom modifiers can do much more than just apply other existing modifiers – t
 
 Tip: Often folks wonder when it’s better to add a custom view modifier versus just adding a new method to View, and really it comes down to one main reason: custom view modifiers can have their own stored properties, whereas extensions to View cannot.
 
-    
+DAY 24
+
+Views and modifiers: Wrap up
+
+Review for Project 3: Views and Modifiers
   
